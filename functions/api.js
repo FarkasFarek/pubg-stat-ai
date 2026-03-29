@@ -8,19 +8,19 @@ export const onRequestGet = async (context) => {
       headers: { 'content-type': 'application/json' },
     });
 
-  // ── /api/health ──────────────────────────────────────────────────────────
+  // health
   if (url.pathname === '/api/health') {
     return json({ ok: true, ts: Date.now() });
   }
 
-  // ── /api/players?name=&shard= ─────────────────────────────────────────────
+  // /api/players?name=&shard=
   if (url.pathname === '/api/players') {
     const name = url.searchParams.get('name');
     const shard = url.searchParams.get('shard');
     if (!name || !shard)
-      return json({ error: 'name és shard szükséges' }, 400);
-    if (!env.PUBG_API_KEY)
-      return json({ error: 'PUBG_API_KEY hiányzik az env-ben' }, 500);
+      return json({ error: 'name es shard szukseges' }, 400);
+    if (!env.PUBGKEY)
+      return json({ error: 'PUBGKEY hianyzik az env-ben' }, 500);
 
     const pubgUrl =
       'https://api.pubg.com/shards/' +
@@ -31,7 +31,7 @@ export const onRequestGet = async (context) => {
     const res = await fetch(pubgUrl, {
       headers: {
         Accept: 'application/vnd.api+json',
-        Authorization: `Bearer ${env.PUBG_API_KEY}`,
+        Authorization: `Bearer ${env.PUBGKEY}`,
       },
     });
     return new Response(res.body, {
@@ -40,15 +40,15 @@ export const onRequestGet = async (context) => {
     });
   }
 
-  // ── /api/matches/:id?shard= ───────────────────────────────────────────────
+  // /api/matches/:id?shard=
   if (url.pathname.startsWith('/api/matches/')) {
     const parts = url.pathname.split('/');
     const id = parts[parts.length - 1];
     const shard = url.searchParams.get('shard');
     if (!id || !shard)
-      return json({ error: 'id és shard szükséges' }, 400);
-    if (!env.PUBG_API_KEY)
-      return json({ error: 'PUBG_API_KEY hiányzik az env-ben' }, 500);
+      return json({ error: 'id es shard szukseges' }, 400);
+    if (!env.PUBGKEY)
+      return json({ error: 'PUBGKEY hianyzik az env-ben' }, 500);
 
     const pubgUrl =
       'https://api.pubg.com/shards/' + shard + '/matches/' + id;
@@ -56,7 +56,7 @@ export const onRequestGet = async (context) => {
     const res = await fetch(pubgUrl, {
       headers: {
         Accept: 'application/vnd.api+json',
-        Authorization: `Bearer ${env.PUBG_API_KEY}`,
+        Authorization: `Bearer ${env.PUBGKEY}`,
       },
     });
     return new Response(res.body, {
@@ -65,10 +65,11 @@ export const onRequestGet = async (context) => {
     });
   }
 
-  // ── /api/telemetry?url= ───────────────────────────────────────────────────
+  // /api/telemetry?url=
   if (url.pathname === '/api/telemetry') {
     const tUrl = url.searchParams.get('url');
-    if (!tUrl) return json({ error: 'url paraméter szükséges' }, 400);
+    if (!tUrl)
+      return json({ error: 'url parameter szukseges' }, 400);
 
     const res = await fetch(tUrl);
     return new Response(res.body, {
