@@ -14,3 +14,14 @@ CREATE TABLE IF NOT EXISTS matches (
 );
 
 CREATE INDEX IF NOT EXISTS idx_player_played ON matches(player_name, played_at);
+
+CREATE TABLE IF NOT EXISTS events (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_name TEXT    NOT NULL,
+  event_type  TEXT    NOT NULL,
+  payload     TEXT    DEFAULT '{}',
+  created_at  TEXT    NOT NULL,
+  consumed    INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_pending ON events(player_name, consumed, created_at);
