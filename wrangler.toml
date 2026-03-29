@@ -1,0 +1,6 @@
+name = "pubg-stat-ai"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+# TRNKEY-t a Cloudflare Dashboard-on add meg: Workers > pubg-stat-ai > Settings > Variables
