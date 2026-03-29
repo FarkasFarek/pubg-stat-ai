@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="hu" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PUBG Live Streamlabs Overlay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root,[data-theme="light"]{
+      --text-xs:clamp(.75rem,.7rem + .25vw,.875rem);
+      --text-sm:clamp(.875rem,.8rem + .35vw,1rem);
+      --text-base:clamp(1rem,.95rem + .25vw,1.125rem);
+      --text-lg:clamp(1.125rem,1rem + .75vw,1.5rem);
+      --text-xl:clamp(1.5rem,1.2rem + 1.25vw,2.25rem);
+      --font-body:'Inter',system-ui,sans-serif;
+      --color-text:#121920;
+      --color-text-muted:#6d7884;
+      --color-primary:#01696f;
+      --radius-lg:.75rem;
+      --radius-xl:1rem;
+      --transition:180ms cubic-bezier(.16,1,.3,1);
+    }
+    [data-theme="dark"]{
+      --color-text:#f4f8fb;
+      --color-text-muted:#a5b2bf;
+      --color-primary:#4f98a3;
+    }
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{margin:0;padding:0;font-family:var(--font-body);background:transparent;color:var(--color-text)}
+    body{min-height:100vh;overflow:hidden}
+    button,input,select{font:inherit}
+
+    /* ---- OVERLAY ---- */
+    .overlay{position:fixed;inset:0;padding:16px;pointer-events:none}
+    .shell{display:grid;grid-template-columns:340px 1fr 320px;gap:16px;height:100%}
+
+    .panel{
+      background:linear-gradient(180deg,rgba(13,17,21,.9),rgba(13,17,21,.72));
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:20px;
+      backdrop-filter:blur(18px);
+      box-shadow:0 18px 60px rgba(0,0,0,.28);
+      overflow:hidden;
+      pointer-events:auto;
+    }
+    .header{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:14px 16px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    .brand{
+      display:flex;align-items:center;gap:10px;
+      font-size:var(--text-sm);font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    }
+    .logo{
+      width:36px;height:36px;border-radius:12px;display:grid;place-items:center;
+      background:linear-gradient(135deg,#4f98a3,#83dce8);color:#071116;
+    }
+    .badge{
+      padding:.35rem .6rem;border-radius:999px;
+      background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+      font-size:var(--text-xs);color:var(--color-text-muted);
+    }
+    .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:16px}
+    .card{
+      padding:14px;border-radius:16px;
+      background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+    }
+    .label{font-size:var(--text-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-muted)}
+    .value{font-size:clamp(1.6rem,1rem + 1.8vw,2.6rem);font-weight:800;line-height:1.05;margin-top:6px}
+    .sub{font-size:var(--text-sm);color:var(--color-text-muted);margin-top:4px}
+
+    .feed{padding:16px;display:flex;flex-direction:column;gap:10px;max-height:54vh;overflow:auto}
+    .event{
+      display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;
+      padding:12px;border-radius:16px;
+      background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+    }
+    .weapon{
+      width:52px;height:52px;border-radius:14px;
+      background:rgba(79,152,163,.18);display:grid;place-items:center;
+      font-size:var(--text-sm);font-weight:800;color:#ddfbff;
+    }
+    .event .title{font-size:var(--text-base);font-weight:700}
+    .event .meta{font-size:var(--text-sm);color:var(--color-text-muted)}
+    .tag{
+      padding:.35rem .55rem;border-radius:999px;font-size:var(--text-xs);font-weight:700;
+      border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);
+    }
+
+    .stage{display:flex;align-items:flex-end;justify-content:center}
+    .toast-wrap{width:min(760px,100%);padding-bottom:16px;display:flex;justify-content:center}
+    .toast{
+      display:none;grid-template-columns:auto 1fr auto;gap:18px;align-items:center;
+      min-width:380px;max-width:760px;padding:18px 22px;border-radius:24px;
+      background:linear-gradient(135deg,rgba(10,14,18,.94),rgba(13,20,25,.9));
+      border:1px solid rgba(255,255,255,.14);box-shadow:0 20px 60px rgba(0,0,0,.35);
+      pointer-events:auto;
+    }
+    .toast.show{display:grid;animation:enter .3s ease}
+    .toast .big{font-size:clamp(1.8rem,1.1rem + 1.2vw,2.7rem);font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+    .toast .small{font-size:var(--text-sm);color:var(--color-text-muted)}
+    .toast .count{font-size:clamp(2rem,1.2rem + 1.6vw,3.3rem);font-weight:900;color:#dbfaff}
+
+    .status{padding:16px;display:flex;flex-direction:column;gap:12px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .bar{height:10px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden}
+    .bar>span{display:block;height:100%;width:0;background:linear-gradient(90deg,#4f98a3,#86e2ef)}
+
+    /* ---- CONTROLS PANEL ---- */
+    .controls{
+      position:fixed;right:16px;bottom:16px;
+      width:min(430px,calc(100vw - 32px));max-height:82vh;overflow:auto;
+      padding:16px;border-radius:20px;
+      background:rgba(10,14,17,.96);border:1px solid rgba(255,255,255,.12);
+      box-shadow:0 24px 70px rgba(0,0,0,.38);pointer-events:auto;
+    }
+    .controls h1{margin:0 0 6px 0;font-size:var(--text-lg)}
+    .controls p{margin:0 0 14px 0;font-size:var(--text-sm);color:var(--color-text-muted)}
+    .field{display:grid;gap:6px;margin-bottom:12px}
+    .field label{font-size:var(--text-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-muted)}
+    .field input,.field select{
+      width:100%;padding:13px 14px;border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:var(--color-text);
+    }
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:4px}
+    .btn{
+      padding:12px 14px;border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);
+      color:var(--color-text);font-weight:700;cursor:pointer;pointer-events:auto;
+      transition:all var(--transition);
+    }
+    .btn.primary{
+      background:linear-gradient(135deg,#4f98a3,#82d9e4);
+      color:#081115;border-color:transparent;
+    }
+    .hint{margin-top:12px;font-size:12px;line-height:1.45;color:var(--color-text-muted)}
+
+    /* ---- LAYOUT VARIANTS ---- */
+    .hide-ui .controls{display:none}
+    .compact .shell{grid-template-columns:300px 1fr 280px}
+    .minimal .left,.minimal .right{display:none}
+    .minimal .shell{grid-template-columns:1fr}
+    .minimal .stage{justify-content:flex-start;align-items:flex-start}
+    .minimal .toast-wrap{justify-content:flex-start;padding-top:24px;padding-left:24px}
+
+    @keyframes enter{
+      from{opacity:0;transform:translateY(16px) scale(.97)}
+      to{opacity:1;transform:translateY(0) scale(1)}
+    }
+    @media (max-width:1200px){.shell{grid-template-columns:320px 1fr}.right{display:none}}
+    @media (max-width:860px){
+      .shell{grid-template-columns:1fr}.left,.right{display:none}
+      .toast{min-width:0;width:100%}
+      .stage{align-items:flex-start}
+      .toast-wrap{padding-top:12px;justify-content:stretch}
+    }
+  </style>
+</head>
+<body>
+
+<!-- ======================== OVERLAY ======================== -->
+<div class="overlay">
+  <div class="shell">
+
+    <!-- LEFT PANEL -->
+    <aside class="panel left">
+      <div class="header">
+        <div class="brand">
+          <div class="logo" aria-label="PUBG Live Overlay logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 8h16v8H4z"></path>
+              <path d="M8 4v4M16 4v4"></path>
+            </svg>
+          </div>
+          <span>PUBG Live</span>
+        </div>
+        <span class="badge" id="mode">Idle</span>
+      </div>
+      <div class="stats">
+        <div class="card"><div class="label">Kills</div><div class="value" id="kills">0</div><div class="sub">Aktuális match</div></div>
+        <div class="card"><div class="label">K/D</div><div class="value" id="kd">0.00</div><div class="sub">Session ratio</div></div>
+        <div class="card"><div class="label">Rang</div><div class="value" id="rank">#--</div><div class="sub">Legjobb elérés</div></div>
+        <div class="card"><div class="label">Damage</div><div class="value" id="damage">0</div><div class="sub">Összes sebzés</div></div>
+      </div>
+      <div class="header"><strong>Kill feed</strong><span class="badge" id="eventsCount">0 esemény</span></div>
+      <div class="feed" id="feed"></div>
+    </aside>
+
+    <!-- CENTER TOAST -->
+    <main class="stage">
+      <div class="toast-wrap">
+        <div class="toast" id="toast" aria-live="polite">
+          <div class="weapon" id="toastWeapon">M4</div>
+          <div>
+            <div class="big" id="toastTitle">Kill</div>
+            <div class="small" id="toastMeta">ellenség kiikatva</div>
+          </div>
+          <div class="count" id="toastCount">1</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- RIGHT PANEL -->
+    <aside class="panel right">
+      <div class="header"><strong>Match állapot</strong><span class="badge" id="phase">Phase 1</span></div>
+      <div class="status">
+        <div class="card"><div class="label">Map</div><div class="value" id="map" style="font-size:2rem">Erangel</div></div>
+        <div class="row">
+          <div class="card"><div class="label">Survivors</div><div class="value" id="survivors" style="font-size:1.9rem">100</div></div>
+          <div class="card"><div class="label">Assists</div><div class="value" id="assists" style="font-size:1.9rem">0</div></div>
+        </div>
+        <div class="card">
+          <div class="label">Zone progress</div>
+          <div class="bar"><span id="phaseBar"></span></div>
+          <div class="sub" id="lastUpdate">Várakozás API adatra...</div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+</div>
+
+<!-- ======================== CONTROLS ======================== -->
+<section class="controls">
+  <h1>Élő PUBG overlay beállítás</h1>
+  <p>Streamlabs / OBS Browser Source URL: a Cloudflare Pages URL. A jobb alsó panel stream előtt elrejthető az <strong>UI elrejtése</strong> gombbal vagy <strong>H</strong> billentyűvel.</p>
+  <div class="field"><label for="playerName">PUBG játékosnév</label><input id="playerName" placeholder="pl. your_pubg_name"></div>
+  <div class="grid2">
+    <div class="field">
+      <label for="platform">Platform / shard</label>
+      <select id="platform">
+        <option value="steam">steam</option>
+        <option value="kakao">kakao</option>
+        <option value="xbox">xbox</option>
+        <option value="psn">psn</option>
+        <option value="stadia">stadia</option>
+        <option value="tournament">tournament</option>
+      </select>
+    </div>
+    <div class="field"><label for="interval">Frissítés (mp)</label><input id="interval" type="number" min="5" value="15"></div>
+  </div>
+  <div class="field">
+    <label for="layout">Layout</label>
+    <select id="layout">
+      <option value="full">Full</option>
+      <option value="compact">Compact</option>
+      <option value="minimal">Minimal toast</option>
+    </select>
+  </div>
+  <div class="btns">
+    <button class="btn primary" id="connectBtn">▶ Live indítás</button>
+    <button class="btn" id="demoBtn">Demo</button>
+    <button class="btn" id="stopBtn">Stop</button>
+    <button class="btn" id="hideBtn">UI elrejtése</button>
+  </div>
+  <div class="hint">
+    A PUBG API kulcs a Cloudflare Environment Variables-ben van tárolva — nem kerül a böngészőbe.
+    Az overlay a <code>/api/players</code>, <code>/api/matches/:id</code>, <code>/api/telemetry</code> végpontokon át kérdezi le az adatokat.
+  </div>
+</section>
+
+<!-- ======================== JAVASCRIPT ======================== -->
+<script>
+  // ── State ───────────────────────────────────────────────────────────────
+  const state = {
+    currentMatchId: null,
+    processedKillIds: new Set(),
+    sessionKills: 0,
+    sessionDeaths: 0,
+    assists: 0,
+    damage: 0,
+    rank: '--',
+    survivors: 100,
+    phase: 1,
+    map: 'Erangel',
+    feed: [],
+    loop: null,
+    mode: 'Idle',
+    weaponMap: {
+      Item_Weapon_M416_C:      { short: 'M4',    label: 'M416'    },
+      Item_Weapon_HK416_C:     { short: '416',   label: 'K416'    },
+      Item_Weapon_AK47_C:      { short: 'AKM',   label: 'AKM'     },
+      Item_Weapon_BerylM762_C: { short: 'BRL',   label: 'Beryl'   },
+      Item_Weapon_Vector_C:    { short: 'VEC',   label: 'Vector'  },
+      Item_Weapon_AWM_C:       { short: 'AWM',   label: 'AWM'     },
+      Item_Weapon_M24_C:       { short: 'M24',   label: 'M24'     },
+      Item_Weapon_DP28_C:      { short: 'DP28',  label: 'DP-28'   },
+      Item_Weapon_Mini14_C:    { short: 'M14',   label: 'Mini14'  },
+      Item_Weapon_SKS_C:       { short: 'SKS',   label: 'SKS'     },
+      Grenade:                 { short: 'Nade',  label: 'Grenade' },
+      Damage_BlueZone:         { short: 'Zone',  label: 'Blue Zone' },
+      Punch:                   { short: 'Melee', label: 'Punch'   },
+    },
+    mapMap: {
+      Baltic_Main:    'Erangel (Remastered)',
+      Erangel_Main:   'Erangel',
+      Desert_Main:    'Miramar',
+      Savage_Main:    'Sanhok',
+      DihorOtok_Main: 'Vikendi',
+      Heaven_Main:    'Haven',
+      Kiki_Main:      'Deston',
+      Tiger_Main:     'Taego',
+      Chimera_Main:   'Paramo',
+      Neon_Main:      'Rondo',
+    },
+  };
+
+  const $ = id => document.getElementById(id);
+  const els = {
+    kills:       $('kills'),
+    kd:          $('kd'),
+    rank:        $('rank'),
+    damage:      $('damage'),
+    map:         $('map'),
+    survivors:   $('survivors'),
+    assists:     $('assists'),
+    phase:       $('phase'),
+    phaseBar:    $('phaseBar'),
+    feed:        $('feed'),
+    eventsCount: $('eventsCount'),
+    mode:        $('mode'),
+    lastUpdate:  $('lastUpdate'),
+    toast:       $('toast'),
+    toastWeapon: $('toastWeapon'),
+    toastTitle:  $('toastTitle'),
+    toastMeta:   $('toastMeta'),
+    toastCount:  $('toastCount'),
+  };
+
+  // ── UI render ────────────────────────────────────────────────────────────
+  function updateUi() {
+    els.kills.textContent       = state.sessionKills;
+    els.kd.textContent          = (state.sessionKills / Math.max(1, state.sessionDeaths)).toFixed(2);
+    els.rank.textContent        = state.rank === '--' ? '#--' : '#' + state.rank;
+    els.damage.textContent      = Math.round(state.damage);
+    els.map.textContent         = state.map;
+    els.survivors.textContent   = state.survivors;
+    els.assists.textContent     = state.assists;
+    els.phase.textContent       = 'Phase ' + state.phase;
+    els.phaseBar.style.width    = Math.min(100, state.phase * 12.5) + '%';
+    els.mode.textContent        = state.mode;
+    els.eventsCount.textContent = state.feed.length + ' esemény';
+    els.feed.innerHTML = state.feed.map(item => `
+      <article class="event">
+        <div class="weapon">${item.short}</div>
+        <div>
+          <div class="title">${item.title}</div>
+          <div class="meta">${item.meta}</div>
+        </div>
+        <span class="tag">${item.tag}</span>
+      </article>`).join('');
+    els.lastUpdate.textContent = 'Frissítve: ' + new Date().toLocaleTimeString('hu-HU');
+  }
+
+  function pushFeed(item) {
+    state.feed.unshift(item);
+    state.feed = state.feed.slice(0, 10);
+    updateUi();
+  }
+
+  function showToast(weapon, victim, totalKills) {
+    els.toastWeapon.textContent = weapon.short;
+    els.toastTitle.textContent  = weapon.label + ' kill';
+    els.toastMeta.textContent   = victim + ' kiikatva';
+    els.toastCount.textContent  = totalKills;
+    els.toast.classList.add('show');
+    clearTimeout(showToast.t);
+    showToast.t = setTimeout(() => els.toast.classList.remove('show'), 3200);
+  }
+
+  function getWeapon(code) {
+    return state.weaponMap[code] || { short: (code || 'UNK').slice(0, 4), label: code || 'Unknown' };
+  }
+
+  // ── PUBG API hívások (Cloudflare Functions proxyn át) ───────────────────
+  async function getLatestMatch(playerName, platform) {
+    const res = await fetch(
+      `/api/players?name=${encodeURIComponent(playerName)}&shard=${platform}`
+    );
+    if (!res.ok) throw new Error('Players API hiba: ' + res.status);
+    const data = await res.json();
+    const player = data.data?.[0];
+    if (!player) throw new Error('A játékos nem található.');
+    const matchId = player.relationships?.matches?.data?.[0]?.id;
+    if (!matchId) throw new Error('Nincs elérhető match.');
+    return matchId;
+  }
+
+  async function getMatchTelemetry(matchId, platform) {
+    const resMatch = await fetch(`/api/matches/${matchId}?shard=${platform}`);
+    if (!resMatch.ok) throw new Error('Match API hiba: ' + resMatch.status);
+    const match = await resMatch.json();
+    const asset = (match.included || []).find(x => x.type === 'asset');
+    const telemetryUrl = asset?.attributes?.URL;
+    if (!telemetryUrl) throw new Error('A telemetry URL hiányzik.');
+    const resTel = await fetch(`/api/telemetry?url=${encodeURIComponent(telemetryUrl)}`);
+    if (!resTel.ok) throw new Error('Telemetry API hiba: ' + resTel.status);
+    const telemetry = await resTel.json();
+    return { telemetry, mapCode: match.data?.attributes?.mapName };
+  }
+
+  // ── Telemetry parser ───────────────────────────────────────────────────
+  function applyTelemetry(telemetry, playerName, mapCode) {
+    state.map = state.mapMap[mapCode] || mapCode || state.map;
+    let totalDamage = 0, assists = 0;
+    let survivors = state.survivors, phase = state.phase;
+    let rank = state.rank, deaths = state.sessionDeaths;
+
+    for (const event of telemetry) {
+      if (event._T === 'LogPlayerTakeDamage' && event.attacker?.name === playerName) {
+        totalDamage += Number(event.damage || 0);
+      }
+      if (event._T === 'LogPlayerKillV2') {
+        const id = `${event._D}|${event.victim?.name || 'unknown'}|${event.killer?.name || 'none'}`;
+        if (event.killer?.name === playerName && !state.processedKillIds.has(id)) {
+          state.processedKillIds.add(id);
+          state.sessionKills += 1;
+          const weapon  = getWeapon(event.damageCauserName);
+          const headshot = event.damageReason === 'HeadShot' || event.isHeadshot;
+          pushFeed({
+            short: weapon.short,
+            title: event.victim?.name || 'Unknown',
+            meta:  `${headshot ? 'headshot' : 'kill'} · ${new Date(event._D).toLocaleTimeString('hu-HU')}`,
+            tag:   headshot ? 'HS' : 'Kill',
+          });
+          showToast(weapon, event.victim?.name || 'Unknown', state.sessionKills);
+        }
+        if (event.assistant?.name === playerName) assists += 1;
+        if (event.victim?.name === playerName) {
+          deaths = Math.max(1, deaths);
+          rank   = event.common?.isGame || rank;
+        }
+      }
+      if (event._T === 'LogMatchEnd' && Array.isArray(event.characters)) {
+        const me = event.characters.find(
+          c => c.character?.name === playerName || c.name === playerName
+        );
+        if (me?.character?.ranking) rank = me.character.ranking;
+      }
+      if (event._T === 'LogPhaseChange')       phase     = Number(event.phase || phase);
+      if (typeof event.alivePlayers === 'number') survivors = event.alivePlayers;
+    }
+
+    state.damage       = Math.max(state.damage, totalDamage);
+    state.assists      = Math.max(state.assists, assists);
+    state.survivors    = survivors;
+    state.phase        = phase;
+    state.rank         = rank;
+    state.sessionDeaths = deaths;
+    updateUi();
+  }
+
+  // ── Polling loop ─────────────────────────────────────────────────────────
+  async function tickLive() {
+    const playerName = $('playerName').value.trim();
+    const platform   = $('platform').value;
+    if (!playerName) throw new Error('Add meg a játékosnevedet.');
+    state.mode = 'Live API';
+    updateUi();
+
+    const matchId = await getLatestMatch(playerName, platform);
+    if (state.currentMatchId !== matchId) {
+      state.currentMatchId    = matchId;
+      state.processedKillIds.clear();
+      state.feed              = [];
+      state.sessionKills      = 0;
+      state.sessionDeaths     = 0;
+      state.assists           = 0;
+      state.damage            = 0;
+      state.rank              = '--';
+    }
+    const { telemetry, mapCode } = await getMatchTelemetry(matchId, platform);
+    applyTelemetry(telemetry, playerName, mapCode);
+  }
+
+  function startLive() {
+    stopLoop();
+    const seconds = Math.max(5, Number($('interval').value || 15));
+    tickLive().catch(handleError);
+    state.loop = setInterval(() => tickLive().catch(handleError), seconds * 1000);
+  }
+
+  function startDemo() {
+    stopLoop();
+    state.mode = 'Demo';
+    updateUi();
+    state.loop = setInterval(() => {
+      const samples = ['EnemyAlpha', 'ZoneRunner', 'SmokePeek', 'RushKing', 'ThirdParty'];
+      const codes   = Object.keys(state.weaponMap);
+      const victim  = samples[Math.floor(Math.random() * samples.length)];
+      const weapon  = getWeapon(codes[Math.floor(Math.random() * codes.length)]);
+      state.sessionKills  += 1;
+      state.damage        += 26 + Math.random() * 74;
+      state.assists       += Math.random() > .7 ? 1 : 0;
+      state.survivors      = Math.max(1, state.survivors - (1 + Math.floor(Math.random() * 3)));
+      state.rank           = Math.max(1, state.survivors);
+      state.phase          = Math.min(8, state.phase + (Math.random() > .55 ? 1 : 0));
+      pushFeed({ short: weapon.short, title: victim, meta: `kill · ${new Date().toLocaleTimeString('hu-HU')}`, tag: 'Kill' });
+      showToast(weapon, victim, state.sessionKills);
+      updateUi();
+    }, 2800);
+  }
+
+  function stopLoop() {
+    clearInterval(state.loop);
+    state.loop  = null;
+    state.mode  = 'Idle';
+    updateUi();
+  }
+
+  function handleError(err) {
+    state.mode = 'Error';
+    updateUi();
+    pushFeed({ short: 'ERR', title: 'API hiba', meta: String(err.message || err).slice(0, 120), tag: 'Error' });
+    console.error(err);
+  }
+
+  // ── Events ─────────────────────────────────────────────────────────────────
+  $('connectBtn').addEventListener('click', startLive);
+  $('demoBtn').addEventListener('click', startDemo);
+  $('stopBtn').addEventListener('click', stopLoop);
+  $('hideBtn').addEventListener('click', () => document.body.classList.toggle('hide-ui'));
+  $('layout').addEventListener('change', e => {
+    document.body.classList.remove('compact', 'minimal');
+    if (e.target.value === 'compact') document.body.classList.add('compact');
+    if (e.target.value === 'minimal') document.body.classList.add('minimal');
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key.toLowerCase() === 'h') document.body.classList.toggle('hide-ui');
+    if (e.key.toLowerCase() === 'd') startDemo();
+  });
+
+  updateUi();
+</script>
+
+</body>
+</html>
